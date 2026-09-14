@@ -67,9 +67,35 @@ export default function App(){
 
         return;
       }
-      if(user?.role==="player") setData({player:await api.playerDashboard(), games:await api.rewardGames()});
-      else if(isStaff) setData({overview:await api.adminOverview(), players:await api.adminPlayers(), leaderboard:await api.leaderboards(), users:user?.role==="admin"?await api.adminUsers():undefined, pointRequests:isStaff?await api.pointRequests("pending"):undefined});
-    }catch(e:any){setError(e.message);}
+
+      if (user?.role === "player") {
+        const dashboard = await api.playerDashboard();
+        const games = await api.rewardGames();
+
+        setData({
+          ...dashboard,
+          games,
+        });
+
+        return;
+      }
+
+      if (isStaff) {
+        setData({
+          overview: await api.adminOverview(),
+          players: await api.adminPlayers(),
+          leaderboard: await api.leaderboards(),
+          users:
+            user?.role === "admin"
+              ? await api.adminUsers()
+              : undefined,
+          pointRequests:
+            await api.pointRequests("pending"),
+        });
+      }
+    }catch(e:any){
+      setError(e.message);
+    }
   };
   useEffect(()=>{if(!checking) refresh()},[checking,user?.role,publicMode]);
 

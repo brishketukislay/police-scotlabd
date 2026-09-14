@@ -6,6 +6,7 @@ from fastapi import (
     HTTPException,
 )
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 
@@ -27,6 +28,9 @@ from ..db.models import (
     SkillMilestone,
     Challenge,
     XPTransaction,
+    Attendance,
+    AttendanceSession,
+    PlayerXPBalance,
 )
 
 from ..auth import require_roles
@@ -280,28 +284,45 @@ def dashboard(
         microsecond=0,
     )
 
-    weekly_transactions = (
+    weekly_xp = (
         db.query(XPTransaction)
         .filter(
             XPTransaction.player_id == player.id,
+            XPTransaction.programme_id == (
+                programme.id if programme else -1
+            ),
             XPTransaction.created_at >= week_start,
+            XPTransaction.amount > 0,
         )
-        .all()
+        .with_entities(
+            func.coalesce(
+                func.sum(XPTransaction.amount),
+                0,
+            )
+        )
+        .scalar()
+        or 0
     )
 
-    weekly_xp = sum(
-        max(0, transaction.amount)
-        for transaction in weekly_transactions
-    )
+    # "Activity" on the player dashboard means actual attendance
+    # sessions, not XP transactions. A single session may generate
+    # multiple XP ledger entries.
+    activity_count = 0
 
-    activity_count = (
-        db.query(XPTransaction)
-        .filter(
-            XPTransaction.player_id == player.id,
-            XPTransaction.created_at >= week_start,
+    if programme:
+        activity_count = (
+            db.query(Attendance.id)
+            .join(
+                AttendanceSession,
+                Attendance.session_id == AttendanceSession.id,
+            )
+            .filter(
+                Attendance.player_id == player.id,
+                AttendanceSession.programme_id == programme.id,
+                Attendance.checked_in_at >= week_start,
+            )
+            .count()
         )
-        .count()
-    )
 
     achievements = [
         {
@@ -325,38 +346,55 @@ def dashboard(
     leaderboard = []
 
     if programme:
-        programme_players = (
-            db.query(Player)
+        ranked_players = (
+            db.query(
+                Player.id,
+                func.coalesce(
+                    PlayerXPBalance.current_xp,
+                    0,
+                ).label("xp"),
+            )
+            .outerjoin(
+                PlayerXPBalance,
+                PlayerXPBalance.player_id == Player.id,
+            )
             .filter(
                 Player.programme_id == programme.id,
                 Player.active == True,
                 Player.public_visible == True,
             )
+            .order_by(
+                func.coalesce(
+                    PlayerXPBalance.current_xp,
+                    0,
+                ).desc(),
+                Player.id.asc(),
+            )
             .all()
-        )
-
-        ranked_players = sorted(
-            [
-                {
-                    "id": item.id,
-                    "xp": player_xp(db, item.id),
-                }
-                for item in programme_players
-            ],
-            key=lambda item: (-item["xp"], item["id"]),
         )
 
         player_rank = next(
             (
                 index + 1
                 for index, item in enumerate(ranked_players)
-                if item["id"] == player.id
+                if item.id == player.id
             ),
             None,
         )
 
         leaderboard_size = len(ranked_players)
+
+        # Do not expose the identities of other young people.
+        # The player only needs their rank and the total leaderboard size.
+        leaderboard = [
+            {
+                "id": item.id,
+                "xp": int(item.xp or 0),
+            }
+            for item in ranked_players
+        ]
     else:
+        ranked_players = []
         player_rank = None
         leaderboard_size = 0
 
@@ -552,13 +590,7 @@ def dashboard(
             ),
         },
 
-        "leaderboard": [
-            {
-                "id": item["id"],
-                "xp": item["xp"],
-            }
-            for item in ranked_players
-        ] if programme else [],
+        "leaderboard": leaderboard,
 
         "mystery_rewards": mystery_rewards,
 

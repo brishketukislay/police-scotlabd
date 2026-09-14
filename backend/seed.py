@@ -102,11 +102,11 @@ if db.query(User).count() == 0:
     db.flush()
 
     rules = [
-        ("Attendance", "ATTENDANCE", 500, 500),
-        ("Daily Behaviour", "BEHAVIOUR", 1000, 1000),
-        ("Processing Chat", "PROCESSING_CHAT", 1200, 1200),
-        ("Game Participation", "GAME_PARTICIPATION", 300, 300),
-        ("Community Action", "COMMUNITY_ACTION", 5000, 5000),
+        ("Attendance", "attendance", 0, 0),
+        ("Daily Behaviour", "behaviour", 0, 0),
+        ("Processing Chat", "processing_chat", 0, 0),
+        ("Game Participation", "game_participation", 0, 0),
+        ("Community Action", "community_action", 0, 0),
     ]
 
     for name, code, individual, group_xp in rules:

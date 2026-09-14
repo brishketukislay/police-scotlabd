@@ -976,18 +976,6 @@ def create_point_rule(
             ),
         )
 
-    if (
-        data.individual_xp == 0
-        and data.group_xp == 0
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "A point rule must award "
-                "some XP."
-            ),
-        )
-
     rule = PointRule(
         programme_id=programme.id,
         name=data.name.strip(),
@@ -1084,18 +1072,6 @@ def update_point_rule(
             detail=(
                 "A point rule with this code "
                 "already exists."
-            ),
-        )
-
-    if (
-        data.individual_xp == 0
-        and data.group_xp == 0
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "A point rule must award "
-                "some XP."
             ),
         )
 

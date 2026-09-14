@@ -7,4 +7,3 @@ python-multipart==0.0.20
 passlib[argon2]==1.7.4
 itsdangerous==2.2.0
 qrcode[pil]==8.2
-pydantic-settings>=2.6,<3

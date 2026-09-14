@@ -1081,10 +1081,6 @@ class PointRule(Base, TimestampMixin):
             "group_award_cap IS NULL OR group_award_cap > 0",
             name="ck_point_rule_group_award_cap_positive",
         ),
-        CheckConstraint(
-            "individual_xp > 0 OR group_xp > 0",
-            name="ck_point_rule_has_positive_reward",
-        ),
     )
 
 

@@ -13,7 +13,7 @@ from .db.base import Base
 # These imports are intentionally kept here because older routers/services
 # may import the XP balance models from app.database.
 try:
-    from .models import GroupXPBalance, PlayerXPBalance
+    from .db.models import GroupXPBalance, PlayerXPBalance
 except ImportError:
     GroupXPBalance = None
     PlayerXPBalance = None
