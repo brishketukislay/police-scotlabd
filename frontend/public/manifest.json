@@ -1,0 +1,15 @@
+{
+  "name": "QuestHub",
+  "short_name": "QuestHub",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#070a0f",
+  "theme_color": "#00ff88",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
