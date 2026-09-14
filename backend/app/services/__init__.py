@@ -1,0 +1,53 @@
+from .xp import (
+    XPError,
+    InvalidXPAmountError,
+    DuplicateXPTransactionError,
+    PlayerNotFoundError,
+    GroupNotFoundError,
+    XPBalance,
+    XPChange,
+    player_xp,
+    player_current_xp,
+    get_player_balance,
+    group_xp,
+    programme_xp,
+    get_transaction_by_reference,
+    award_xp,
+    award_positive_xp,
+    award_penalty_xp,
+    award_group_penalty_xp,
+    transactions_for_player,
+    transactions_for_group,
+    transaction_to_dict,
+    balance_from_transactions,
+)
+
+__all__ = [
+    "XPError",
+    "InvalidXPAmountError",
+    "DuplicateXPTransactionError",
+    "PlayerNotFoundError",
+    "GroupNotFoundError",
+    "XPBalance",
+    "XPChange",
+    "player_xp",
+    "player_current_xp",
+    "get_player_balance",
+    "group_xp",
+    "programme_xp",
+    "get_transaction_by_reference",
+    "award_xp",
+    "award_positive_xp",
+    "award_penalty_xp",
+    "award_group_penalty_xp",
+    "transactions_for_player",
+    "transactions_for_group",
+    "transaction_to_dict",
+    "balance_from_transactions",
+]
+from .xp_rules import award_rule_xp
+
+__all__ = [
+    *globals().get('__all__', []),
+    'award_rule_xp',
+]

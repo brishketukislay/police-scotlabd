@@ -1,0 +1,138 @@
+# =========================
+
+# Environment / Secrets
+
+# =========================
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# =========================
+
+# Python / FastAPI
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging
+
+*.egg
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+
+# Testing / coverage
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+
+# Node / React / Vite
+
+# =========================
+
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# =========================
+
+# Logs
+
+# =========================
+
+*.log
+logs/
+
+# =========================
+
+# IDE / Editors
+
+# =========================
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+.idea/
+*.iml
+
+# =========================
+
+# OS files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+
+# Temporary files
+
+# =========================
+
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# =========================
+
+# Databases / Local data
+
+# =========================
+
+*.sqlite
+*.sqlite3
+*.db
+
+# =========================
+
+# Uploads / Generated files
+
+# =========================
+
+uploads/
+tmp/
+temp/
+.cache/
+
+# =========================
+
+# Build / generated output
+
+# =========================
+
+coverage/
+.parcel-cache/
+EOF
+*.orig
+*.rej
