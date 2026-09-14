@@ -1,7 +1,45 @@
 //export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 export type Role = "admin" | "youth_worker" | "player";
-export type SessionUser = { id: number; username: string; role: Role };
+export type SessionUser = {
+  id: number;
+  username: string;
+  role: Role;
+};
+
+export type PublicProgramme = {
+  id: number;
+  name: string;
+  target_xp: number;
+  weekly_target_xp?: number | null;
+  description?: string | null;
+};
+
+export type PublicLeaderboardRow = {
+  rank: number;
+  gamertag: string;
+  avatar: string;
+  xp: number;
+};
+
+export type PublicLeaderboard = {
+  programme: {
+    id: number;
+    name: string;
+    target_xp: number;
+    group_xp: number;
+  };
+  overall: PublicLeaderboardRow[];
+  high_risers: unknown[];
+};
+
+export type PublicDashboard = {
+  programme: PublicProgramme | null;
+  group_xp: number;
+  theme: Record<string, unknown> | null;
+  phases: Array<Record<string, unknown>>;
+  map: Record<string, unknown> | null;
+};
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -43,11 +81,11 @@ export const api = {
       {method:"DELETE"}
     ),
 
-  publicDashboard: () => request<any>("/api/public/dashboard"),
+  publicDashboard: () => request<PublicDashboard>("/api/public/dashboard"),
   playerDashboard: () => request<any>("/api/player/dashboard"),
   rewardGames: () => request<any>("/api/reward-games/player"),
   adminPlayers: () => request<any>("/api/admin/players"),
-  leaderboards: () => request<any>("/api/leaderboard"),
+  leaderboards: () => request<PublicLeaderboard>("/api/gamification/leaderboards"),
   adminUsers: () => request<any>("/api/admin/users"),
   pointRequests: (status?: string) => request<any>(`/api/points-requests${status ? `?status=${encodeURIComponent(status)}` : ""}`),
   approvePointRequest: (id:number, body:any={}) => request<any>(`/api/points-requests/${id}/approve`, {method:"POST", body:JSON.stringify(body)}),

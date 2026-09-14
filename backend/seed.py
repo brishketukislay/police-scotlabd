@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.db.base import Base
-from app.db.database import engine, SessionLocal
+from app.db.database import SessionLocal, init_db
 from app.db.models import (
     User,
     Programme,
@@ -16,6 +16,12 @@ from app.db.models import (
     SkillMilestone,
 )
 from app.auth import hash_password
+
+# The seed script must also bootstrap a fresh database.  The application
+# normally creates tables during startup, but `seed.py` is documented as
+# the first backend command to run.
+
+init_db()
 
 db = SessionLocal()
 

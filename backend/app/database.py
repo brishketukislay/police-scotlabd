@@ -3,6 +3,7 @@ from .db.database import (
     SessionLocal,
     engine,
     get_db,
+    init_db,
 )
 
 from .db.base import Base
@@ -19,6 +20,7 @@ except ImportError:
 
 
 __all__ = [
+    "init_db",
     "Base",
     "DATABASE_URL",
     "SessionLocal",

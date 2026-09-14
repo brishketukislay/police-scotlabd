@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -24,6 +26,7 @@ from ..db.models import (
     SkillTree,
     SkillMilestone,
     Challenge,
+    XPTransaction,
 )
 
 from ..auth import require_roles
@@ -266,6 +269,98 @@ def dashboard(
     )
 
     # ------------------------------------------------------------
+    # WEEKLY PLAYER STATS
+    # ------------------------------------------------------------
+    now = datetime.now(timezone.utc)
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    weekly_transactions = (
+        db.query(XPTransaction)
+        .filter(
+            XPTransaction.player_id == player.id,
+            XPTransaction.created_at >= week_start,
+        )
+        .all()
+    )
+
+    weekly_xp = sum(
+        max(0, transaction.amount)
+        for transaction in weekly_transactions
+    )
+
+    activity_count = (
+        db.query(XPTransaction)
+        .filter(
+            XPTransaction.player_id == player.id,
+            XPTransaction.created_at >= week_start,
+        )
+        .count()
+    )
+
+    achievements = [
+        {
+            "id": player_badge.id,
+            "name": badge.name,
+            "description": badge.description,
+            "colour": badge.colour,
+        }
+        for player_badge in badges
+        for badge in [player_badge.badge]
+        if badge is not None
+    ]
+
+    # ------------------------------------------------------------
+    # PLAYER RANK
+    #
+    # Rank only against active, public-visible players in the
+    # player's active programme.  Do not expose other players'
+    # identities in the response.
+    # ------------------------------------------------------------
+    leaderboard = []
+
+    if programme:
+        programme_players = (
+            db.query(Player)
+            .filter(
+                Player.programme_id == programme.id,
+                Player.active == True,
+                Player.public_visible == True,
+            )
+            .all()
+        )
+
+        ranked_players = sorted(
+            [
+                {
+                    "id": item.id,
+                    "xp": player_xp(db, item.id),
+                }
+                for item in programme_players
+            ],
+            key=lambda item: (-item["xp"], item["id"]),
+        )
+
+        player_rank = next(
+            (
+                index + 1
+                for index, item in enumerate(ranked_players)
+                if item["id"] == player.id
+            ),
+            None,
+        )
+
+        leaderboard_size = len(ranked_players)
+    else:
+        player_rank = None
+        leaderboard_size = 0
+
+    # ------------------------------------------------------------
     # PERFORMANCE
     #
     # Keep this aggregate and youth-facing: the player can see
@@ -373,18 +468,21 @@ def dashboard(
     # The dashboard only reads the resulting PlayerReward records.
     # ------------------------------------------------------------
 
-    active_rewards = (
-        db.query(Reward)
-        .filter(
-            Reward.programme_id == programme.id,
-            Reward.active.is_(True),
+    active_rewards = []
+
+    if programme:
+        active_rewards = (
+            db.query(Reward)
+            .filter(
+                Reward.programme_id == programme.id,
+                Reward.active.is_(True),
+            )
+            .order_by(
+                Reward.xp_threshold.asc(),
+                Reward.id.asc(),
+            )
+            .all()
         )
-        .order_by(
-            Reward.xp_threshold.asc(),
-            Reward.id.asc(),
-        )
-        .all()
-    )
 
     player_rewards = (
         db.query(PlayerReward)
@@ -434,7 +532,33 @@ def dashboard(
             "avatar": player.avatar,
             "xp": player_total,
             "individual_xp": player_total,
+            "weekly_xp": weekly_xp,
+            "activity_count": activity_count,
+            "achievements": achievements,
+            "rank": player_rank,
+            "rank_total": leaderboard_size,
         },
+
+        "overview": {
+            "target_xp": (
+                programme.target_xp
+                if programme
+                else 0
+            ),
+            "weekly_target_xp": (
+                programme.weekly_target_xp
+                if programme
+                else 0
+            ),
+        },
+
+        "leaderboard": [
+            {
+                "id": item["id"],
+                "xp": item["xp"],
+            }
+            for item in ranked_players
+        ] if programme else [],
 
         "mystery_rewards": mystery_rewards,
 

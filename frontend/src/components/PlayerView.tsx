@@ -58,11 +58,9 @@ export default function PlayerView({ data, section, openWheel, openQr, pushToast
             <div>
               <span>Your rank</span>
               <strong>
-                {data?.leaderboard?.findIndex((p: any) => p.id === player.id) >= 0
-                  ? data?.leaderboard?.findIndex((p: any) => p.id === player.id) + 1
-                  : "?"}
+                {player.rank ?? "?"}
               </strong>
-              <small>out of {data?.leaderboard?.length ?? 0}</small>
+              <small>out of {player.rank_total ?? 0}</small>
             </div>
           </div>
           <div className="stat">

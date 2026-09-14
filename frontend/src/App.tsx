@@ -53,7 +53,20 @@ export default function App(){
 
   const refresh=async()=>{
     try{
-      if(publicMode){setData(await api.publicDashboard()); return;}
+      if (publicMode) {
+        const [dashboard, leaderboards] =
+          await Promise.all([
+            api.publicDashboard(),
+            api.leaderboards(),
+          ]);
+
+        setData({
+          ...dashboard,
+          leaderboards,
+        });
+
+        return;
+      }
       if(user?.role==="player") setData({player:await api.playerDashboard(), games:await api.rewardGames()});
       else if(isStaff) setData({overview:await api.adminOverview(), players:await api.adminPlayers(), leaderboard:await api.leaderboards(), users:user?.role==="admin"?await api.adminUsers():undefined, pointRequests:isStaff?await api.pointRequests("pending"):undefined});
     }catch(e:any){setError(e.message);}

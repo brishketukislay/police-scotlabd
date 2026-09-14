@@ -110,17 +110,47 @@ function Groups({
     }
   };
 
-  const add = async (playerId: number) => {
-    if (!selected) return;
+const add = async (playerId: number) => {
+  if (!selected) return;
 
-    try {
-      await api.addPlayerToGroup(selected.id, playerId);
-      pushToast("Young person added to group");
-      await load();
-    } catch (e: any) {
-      pushToast(e.message, "warning");
+  const player = players.find((p: any) => p.id === playerId);
+
+  const currentGroup = groups.find((g: any) =>
+    g.players?.some((p: any) => p.id === playerId)
+  );
+
+  const alreadyInAnotherGroup =
+    currentGroup && currentGroup.id !== selected.id;
+
+  if (alreadyInAnotherGroup) {
+    const confirmed = window.confirm(
+      `"${player?.name ?? "This young person"}" is already in "${currentGroup.name}".\n\n` +
+      `Move them to "${selected.name}"?`
+    );
+
+    if (!confirmed) {
+      return;
     }
-  };
+  }
+
+  try {
+    await api.addPlayerToGroup(
+      selected.id,
+      playerId,
+      alreadyInAnotherGroup
+    );
+
+    pushToast(
+      alreadyInAnotherGroup
+        ? "Young person moved to group"
+        : "Young person added to group"
+    );
+
+    await load();
+  } catch (e: any) {
+    pushToast(e.message, "warning");
+  }
+};
 
   const remove = async (playerId: number) => {
     if (!selected) return;

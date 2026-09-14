@@ -91,4 +91,19 @@ __all__ = [
     "SessionLocal",
     "engine",
     "get_db",
+    "init_db",
 ]
+
+
+def init_db() -> None:
+    """
+    Initialise the database schema.
+
+    Importing the models here is intentional: SQLAlchemy only knows about
+    declarative models after their modules have been imported and their
+    classes have been registered against Base.metadata.
+    """
+    from . import models  # noqa: F401
+    from .base import Base
+
+    Base.metadata.create_all(bind=engine)

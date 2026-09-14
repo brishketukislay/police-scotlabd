@@ -48,7 +48,7 @@ export default function Players({ data, setSelectedPlayer, openAward, openUsers,
     setBusy(true);
 
     try {
-      await api.updateUser(selected.id, {
+      await api.updateUser(selected.user_id, {
         display_name: clean,
       });
 
@@ -110,7 +110,7 @@ export default function Players({ data, setSelectedPlayer, openAward, openUsers,
                   }}
                 >
                   <span>
-                    <b>{player.gamertag}</b>
+                    <b>{player.display_name ?? player.gamertag}</b>
 
                     <small
                       style={{

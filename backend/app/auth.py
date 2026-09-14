@@ -1,5 +1,8 @@
-from datetime import datetime, timedelta
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from itsdangerous import (
+    BadSignature,
+    SignatureExpired,
+    URLSafeTimedSerializer,
+)
 from passlib.hash import argon2
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -8,8 +11,8 @@ from .core.config import settings
 from .db.database import get_db
 from .db.models import User
 
-SECRET = "CHANGE_THIS_SECRET_BEFORE_PRODUCTION"
-serializer = URLSafeTimedSerializer(SECRET)
+
+serializer = URLSafeTimedSerializer(settings.session_secret)
 
 
 def hash_password(password: str) -> str:
@@ -31,17 +34,34 @@ def get_current_user(
     token = request.cookies.get(settings.session_cookie_name)
 
     if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+        )
 
     try:
-        data = serializer.loads(token, max_age=60 * 60 * 24 * 7)
-    except (BadSignature, SignatureExpired):
-        raise HTTPException(status_code=401, detail="Session expired")
+        data = serializer.loads(
+            token,
+            max_age=settings.session_max_age_seconds,
+        )
+    except SignatureExpired:
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired",
+        )
+    except BadSignature:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid session",
+        )
 
     user = db.get(User, data["user_id"])
 
     if not user or not user.active:
-        raise HTTPException(status_code=401, detail="Account unavailable")
+        raise HTTPException(
+            status_code=401,
+            detail="Account unavailable",
+        )
 
     return user
 
@@ -49,7 +69,10 @@ def get_current_user(
 def require_roles(*roles):
     def dependency(user=Depends(get_current_user)):
         if user.role not in roles:
-            raise HTTPException(status_code=403, detail="Insufficient permissions")
+            raise HTTPException(
+                status_code=403,
+                detail="Insufficient permissions",
+            )
         return user
 
     return dependency

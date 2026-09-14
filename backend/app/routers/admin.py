@@ -3207,6 +3207,17 @@ def admin_players(
     return [
         {
             "id": player.id,
+            "user_id": player.user_id,
+            "username": (
+                player.user.username
+                if player.user
+                else None
+            ),
+            "display_name": (
+                player.user.display_name
+                if player.user
+                else None
+            ),
             "gamertag": player.gamertag,
             "avatar": player.avatar,
             "active": player.active,

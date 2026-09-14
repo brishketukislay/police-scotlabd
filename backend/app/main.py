@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .database import Base, engine
+from .database import engine, init_db
+from .core.config import settings
 from .routers.xp_operations import router as xp_operations_router
 from .routers.drawing_games import router as drawing_games_router
 from .routers import analytics
@@ -22,7 +23,7 @@ from .routers import (
     points_requests,
 )
 
-Base.metadata.create_all(bind=engine)
+init_db()
 
 app = FastAPI(
     title="Digital Youth Platform",
@@ -34,9 +35,7 @@ app.include_router(xp_operations_router)
 app.include_router(drawing_games_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
