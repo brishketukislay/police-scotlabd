@@ -23,7 +23,7 @@ from .core import (
     PlayerReward,
     PointRule,
     Programme,
-    ProgrammeGame,
+        ProgrammeGame,
     ProgrammeMilestone,
     Resource,
     Reward,
@@ -64,6 +64,7 @@ __all__ = [
     "PlayerReward",
     "PointRule",
     "Programme",
+    "ProgrammeEconomy",
     "ProgrammeGame",
     "ProgrammeMilestone",
     "Resource",
@@ -80,6 +81,10 @@ __all__ = [
     "GroupXPBalance",
     "PlayerXPBalance",
 ]
+
+from .programme_economy import ProgrammeEconomy
+
+from .programme_economy import ProgrammeEconomy
 
 from .xp_balance import (
     GroupXPBalance,

@@ -13,6 +13,7 @@ from ..db.models import (
     Player,
     YouthGroup,
     XPTransaction,
+    Notification,
 )
 from ..db.models.xp_balance import (
     PlayerXPBalance,
@@ -573,6 +574,19 @@ def award_xp(
     try:
         db.add(transaction)
         db.flush()
+        # Create notification if we have a reference
+        if reference_type is not None and reference_id is not None:
+            notification = Notification(
+                programme_id=programme_id,
+                player_id=player_id,
+                title="XP Transaction",
+                body=f"{transaction_type}: {reason}",
+                notification_type="xp_transaction",
+                reference_type=reference_type,
+                reference_id=reference_id,
+                active=True,
+            )
+            db.add(notification)
         savepoint.commit()
 
     except IntegrityError as exc:

@@ -2243,10 +2243,28 @@ class Notification(Base, TimestampMixin):
         nullable=True,
     )
 
+    reference_type: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    reference_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
     active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "reference_type",
+            "reference_id",
+            name="uq_notification_reference",
+        ),
     )
 
 
