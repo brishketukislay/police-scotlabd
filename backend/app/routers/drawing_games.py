@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -14,6 +14,8 @@ from app.db.models import (
     Player,
     YouthGroup,
 )
+import json
+
 from app.services.drawing_accuracy import (
     SUPPORTED_SHAPES,
     calculate_accuracy,
@@ -126,6 +128,12 @@ class XPBracket(BaseModel):
         return self
 
 
+class DrawingGameConfig(BaseModel):
+    timeLimit: int = Field(ge=5, le=300)  # 5 seconds to 5 minutes
+    canvasWidth: int = Field(default=800, ge=100, le=2000)
+    canvasHeight: int = Field(default=600, ge=100, le=2000)
+    strokeWidth: int = Field(default=5, ge=1, le=50)
+
 class CreateDrawingGameRequest(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = Field(
@@ -133,10 +141,12 @@ class CreateDrawingGameRequest(BaseModel):
         max_length=2000,
     )
     shape: str
+    config: DrawingGameConfig
     xp_brackets: list[XPBracket] = Field(
         min_length=1,
         max_length=20,
     )
+    active: bool = Field(default=True)
 
 
 class AssignDrawingGameRequest(BaseModel):
@@ -314,7 +324,7 @@ def create_game(
     brackets = validate_brackets(data.xp_brackets)
     programme_id = active_programme_id(db)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     result = db.execute(
         text(
@@ -338,7 +348,7 @@ def create_game(
                 :shape,
                 :config,
                 :xp_brackets,
-                1,
+                :active,
                 :created_at
             )
             """
@@ -353,11 +363,9 @@ def create_game(
                 else None
             ),
             "shape": data.shape,
-            "config": (
-                '{"canvasWidth":800,"canvasHeight":600,'
-                '"strokeWidth":5}'
-            ),
-            "xp_brackets": brackets,
+            "config": json.dumps(data.config.model_dump()),
+            "xp_brackets": json.dumps(brackets),
+            "active": 1 if data.active else 0,  # SQLite uses 1/0 for boolean
             "created_at": now,
         },
     )
@@ -390,7 +398,7 @@ def create_game(
 
 @router.get("/admin")
 def list_games(
-    user=Depends(require_roles("youth_worker", "admin")),
+    _=Depends(require_roles("youth_worker", "admin")),
     db: Session = Depends(get_db),
 ):
     ensure_tables(db)
@@ -410,6 +418,98 @@ def list_games(
     ).mappings().all()
 
     return [dict(row) for row in rows]
+
+
+@router.put("/admin/{game_id}")
+def update_game(
+    game_id: int,
+    data: CreateDrawingGameRequest,
+    user=Depends(require_roles("youth_worker", "admin")),
+    db: Session = Depends(get_db),
+):
+    ensure_tables(db)
+
+    if data.shape not in SUPPORTED_SHAPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported shape.",
+        )
+
+    brackets = validate_brackets(data.xp_brackets)
+    programme_id = active_programme_id(db)
+
+    # Ensure the game exists and belongs to the active programme
+    game = db.execute(
+        text(
+            """
+            SELECT id
+            FROM drawing_games
+            WHERE id = :game_id
+              AND programme_id = :programme_id
+            """
+        ),
+        {"game_id": game_id, "programme_id": programme_id},
+    ).first()
+
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail="Drawing game not found.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    db.execute(
+        text(
+            """
+            UPDATE drawing_games
+            SET
+                name = :name,
+                description = :description,
+                shape = :shape,
+                config = :config,
+                xp_brackets = :xp_brackets,
+                active = :active,
+                created_at = :created_at,
+                created_by_user_id = :created_by_user_id
+            WHERE id = :game_id
+            """
+        ),
+        {
+            "game_id": game_id,
+            "name": data.name.strip(),
+            "description": (data.description.strip() if data.description else None),
+            "shape": data.shape,
+            "config": json.dumps(data.config.model_dump()),
+            "xp_brackets": json.dumps(brackets),
+            "active": 1 if data.active else 0,  # SQLite uses 1/0 for boolean
+            "created_at": now,
+            "created_by_user_id": user.id,
+        },
+    )
+
+    db.add(
+        AuditLog(
+            user_id=user.id,
+            action="drawing_game.updated",
+            entity_type="drawing_game",
+            entity_id=game_id,
+            details=(
+                f"shape={data.shape};"
+                f"name={data.name};"
+                f"xp_brackets={brackets}"
+            ),
+        )
+    )
+
+    db.commit()
+
+    return {
+        "id": game_id,
+        "name": data.name.strip(),
+        "shape": data.shape,
+        "xp_brackets": brackets,
+    }
 
 
 @router.post("/{game_id}/assign")
@@ -509,10 +609,15 @@ def assign_game(
                 "game_id": game_id,
                 "player_id": player.id,
             },
-        ).first()
+        ).mappings().first()
 
         if existing:
-            continue
+            # Delete existing assignment to allow re-assignment
+            db.execute(
+                text("DELETE FROM drawing_game_assignments WHERE id = :id"),
+                {"id": existing["id"]},
+            )
+            # Continue to create a new assignment below
 
         result = db.execute(
             text(
@@ -543,7 +648,7 @@ def assign_game(
                 "player_id": player.id,
                 "assigned_by_user_id": user.id,
                 "source_group_id": source_group_id,
-                "assigned_at": datetime.utcnow(),
+                "assigned_at": datetime.now(timezone.utc),
             },
         )
 
@@ -573,7 +678,7 @@ def assign_game(
 
 @router.get("/assignments")
 def worker_assignments(
-    user=Depends(require_roles("youth_worker", "admin")),
+    _=Depends(require_roles("youth_worker", "admin")),
     db: Session = Depends(get_db),
 ):
     ensure_tables(db)
@@ -705,7 +810,7 @@ def submit_attempt(
 
     awarded_xp = resolve_xp(
         accuracy,
-        assignment["xp_brackets"],
+        json.loads(assignment["xp_brackets"]),
     )
 
     if awarded_xp <= 0:
@@ -740,11 +845,11 @@ def submit_attempt(
             "player_id": player.id,
             "accuracy": accuracy,
             "awarded_xp": awarded_xp,
-            "metadata": {
+            "metadata": json.dumps({
                 "shape": assignment["shape"],
                 "point_count": len(points),
-            },
-            "created_at": datetime.utcnow(),
+            }),
+            "created_at": datetime.now(timezone.utc),
         },
     )
 
@@ -794,7 +899,7 @@ def submit_attempt(
             """
         ),
         {
-            "completed_at": datetime.utcnow(),
+            "completed_at": datetime.now(timezone.utc),
             "assignment_id": assignment_id,
         },
     )

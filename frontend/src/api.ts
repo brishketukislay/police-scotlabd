@@ -92,6 +92,12 @@ export const api = {
   createPointRequest: (body:any) => request<any>("/api/points-requests", {method:"POST", body:JSON.stringify(body)}),
   rotatePlayerQr: () => request<any>("/api/attendance/player-qr/rotate", {method:"POST"}),
   playRewardGame: (playId:number) => request<any>(`/api/reward-games/${playId}/play`, {method:"POST"}),
+  submitDrawingAttempt: (assignmentId:number, body:any) => request<any>(`/api/drawing-games/assignments/${assignmentId}/attempt`, {method:"POST", body:JSON.stringify(body)}),
+  adminDrawingGames: () => request<any[]>("/api/drawing-games/admin"),
+  playerDrawingGames: () => request<any[]>("/api/drawing-games/player"),
+  createDrawingGame: (body:any) => request<any>("/api/drawing-games/admin", {method:"POST", body:JSON.stringify(body)}),
+  updateDrawingGame: (id:number, body:any) => request<any>(`/api/drawing-games/admin/${id}`, {method:"PUT", body:JSON.stringify(body)}),
+  assignDrawingGame: (gameId:number, body:any) => request<any>(`/api/drawing-games/${gameId}/assign`, {method:"POST", body:JSON.stringify(body)}),
   awardXp: (playerId:number, amount:number, reason?:string) =>
     request<any>("/api/admin/xp/award", {
       method:"POST",

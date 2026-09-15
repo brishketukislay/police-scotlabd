@@ -6,7 +6,7 @@ from fastapi import (
     HTTPException,
 )
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 
@@ -31,6 +31,9 @@ from ..db.models import (
     Attendance,
     AttendanceSession,
     PlayerXPBalance,
+        DrawingGame,
+        DrawingGameAssignment,
+        DrawingGameAttempt,
 )
 
 from ..auth import require_roles
@@ -149,6 +152,30 @@ def dashboard(
         )
         .first()
     )
+    # Drawing game assignments
+    drawing_game_assignments = []
+    if programme:
+        assignment_rows = db.execute(
+            text(
+                """
+                SELECT
+                    a.id AS assignment_id,
+                    a.game_id,
+                    g.name,
+                    g.description,
+                    g.shape,
+                    g.config
+                FROM drawing_game_assignments a
+                JOIN drawing_games g ON g.id = a.game_id
+                WHERE a.player_id = :player_id
+                  AND a.programme_id = :programme_id
+                  AND a.status = 'assigned'
+                  AND g.active = 1
+                """
+            ),
+            {"player_id": player.id, "programme_id": programme.id},
+        ).mappings().all()
+        drawing_game_assignments = [dict(row) for row in assignment_rows]
 
     theme = (
         db.get(
@@ -765,5 +792,6 @@ def dashboard(
             }
             for challenge in challenges
         ],
+        "drawing_games": drawing_game_assignments
 
     }

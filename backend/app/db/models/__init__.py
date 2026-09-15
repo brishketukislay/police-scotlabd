@@ -90,6 +90,11 @@ from .xp_balance import (
     GroupXPBalance,
     PlayerXPBalance,
 )
+from .drawing_game import (
+    DrawingGame,
+    DrawingGameAssignment,
+    DrawingGameAttempt,
+)
 
 from .reward_game import (
     PlayerRewardGame,
@@ -103,4 +108,7 @@ __all__ += [
     "RewardGame",
     "RewardGamePlayStatus",
     "RewardGameType",
+    "DrawingGame",
+    "DrawingGameAssignment",
+    "DrawingGameAttempt",
 ]

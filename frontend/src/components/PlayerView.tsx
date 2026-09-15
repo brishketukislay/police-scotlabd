@@ -6,10 +6,11 @@ type PlayerViewProps = {
   section: string;
   openWheel: () => void;
   openQr: () => void;
+  openDrawShapeModal: (assignment: any) => void;
   pushToast: (s: string, t?: any) => void;
 };
 
-export default function PlayerView({ data, section, openWheel, openQr, pushToast }: PlayerViewProps) {
+export default function PlayerView({ data, section, openWheel, openQr, openDrawShapeModal, pushToast }: PlayerViewProps) {
   const player = data?.player ?? {};
   const games = data?.games ?? [];
 
@@ -121,19 +122,19 @@ export default function PlayerView({ data, section, openWheel, openQr, pushToast
           </div>
         </section>
 
-        {games.length > 0 && (
+        {data?.drawing_games?.length > 0 && (
           <section className="panel jackpot">
             <div>
-              <span className="eyebrow">ACTIVE REWARD GAMES</span>
+              <span className="eyebrow">DRAW SHAPE GAMES</span>
               <h3>Current opportunities</h3>
-              <p>Participate in active reward games to earn bonus XP.</p>
+              <p>Participate in active draw shape games to earn bonus XP.</p>
             </div>
             <div className="jackpot-actions">
-              {games.map((game: any) => (
+              {data?.drawing_games.map((game: any) => (
                 <button
-                  key={game.id}
+                  key={game.assignment_id}
                   className="secondary-btn"
-                  onClick={() => {/* TODO: join game */}}
+                  onClick={() => openDrawShapeModal(game)}
                 >
                   {game.name}
                 </button>
