@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dataclasses import dataclass
 from typing import Iterable
@@ -20,7 +20,6 @@ from ..db.models.xp_balance import (
     GroupXPBalance,
 )
 
-from .rewards import grant_eligible_rewards
 
 
 class XPError(Exception):
@@ -106,18 +105,6 @@ def _get_player(
     return player
 
 
-def _get_group(
-    db: Session,
-    group_id: int,
-) -> YouthGroup:
-    group = db.get(YouthGroup, group_id)
-
-    if group is None:
-        raise GroupNotFoundError(
-            f"Group {group_id} was not found."
-        )
-
-    return group
 
 
 def _make_reference(
@@ -1038,7 +1025,7 @@ def apply_player_xp(
     elif amount < 0:
         balance.lifetime_xp_removed += abs(amount)
 
-    balance.updated_at = datetime.utcnow()
+    balance.updated_at = datetime.now(timezone.utc)
 
     db.flush()
 
@@ -1091,7 +1078,7 @@ def apply_group_xp(
     elif amount < 0:
         balance.lifetime_xp_removed += abs(amount)
 
-    balance.updated_at = datetime.utcnow()
+    balance.updated_at = datetime.now(timezone.utc)
 
     db.flush()
 
@@ -1152,7 +1139,7 @@ def _advance_active_skill_tree(
             and tree.current_xp >= milestone.required_xp
         ):
             milestone.completed = True
-            milestone.completed_at = datetime.utcnow()
+            milestone.completed_at = datetime.now(timezone.utc)
 
     if (
         tree.milestones
@@ -1163,7 +1150,7 @@ def _advance_active_skill_tree(
     ):
         tree.completed = True
         tree.active = False
-        tree.completed_at = datetime.utcnow()
+        tree.completed_at = datetime.now(timezone.utc)
 
     db.flush()
 

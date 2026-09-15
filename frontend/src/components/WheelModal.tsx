@@ -149,22 +149,22 @@ export default function WheelModal({ data, onClose, pushToast }: WheelModalProps
           }}
         >
           <div className="wheel-segments"
-            style={{
+            style={ {
               '--wheel-count': games.length
-            }}
+            } as any }
           >
             {games.map((game: any, index: number) => (
               <div
                 key={game.id}
                 className="wheel-segment"
-                style={{
+                style={ {
                   '--rotation': ((360 / games.length) * index).toString()
-                }}
+                } as any }
               >
                 <div className="wheel-reward-label"
-                  style={{
+                  style={ {
                     '--label-angle': ((360 / games.length) * index + 90).toString()
-                  }}
+                  } as any }
                 >
                   {/* Enhanced segment content */}
                   <div className="segment-content">
