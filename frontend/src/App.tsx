@@ -60,11 +60,59 @@ export default function App() {
   const [publicTvMode, setPublicTvMode] = useState(false);
   // State for mobile sidebar
   const [mobileNav, setMobileNav] = useState(false);
-  // State for current section in the dashboard
-  const [section, setSection] = useState("Overview");
-
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Dashboard navigation is URL-driven.
+  // The pathname is the source of truth instead of React section state.
+  const dashboardRoutes: Record<string, string> = {
+    "Dashboard": "/dashboard",
+    "Overview": "/dashboard",
+    "Users & Groups": "/dashboard/users-groups",
+    "Points & Rewards": "/dashboard/points-rewards",
+    "Drawing Games": "/dashboard/drawing-games",
+    "Points Requests": "/dashboard/points-requests",
+    "Challenges": "/dashboard/challenges",
+    "Phases & Themes": "/dashboard/phases-themes",
+    "Community Nominations": "/dashboard/community-nominations",
+    "Analytics": "/dashboard/analytics",
+    "System Settings": "/dashboard/system-settings",
+    "Players": "/dashboard/players",
+    "Groups": "/dashboard/groups",
+    "Map": "/dashboard/map",
+    "Rewards & Points": "/dashboard/rewards-points",
+    "Resources": "/dashboard/resources",
+    "Reports": "/dashboard/reports",
+    "Profile": "/dashboard/profile",
+  };
+
+  const dashboardSections: Record<string, string> = {
+    "/dashboard": "Overview",
+    "/dashboard/overview": "Overview",
+    "/dashboard/users-groups": "Users & Groups",
+    "/dashboard/points-rewards": "Points & Rewards",
+    "/dashboard/drawing-games": "Drawing Games",
+    "/dashboard/points-requests": "Points Requests",
+    "/dashboard/challenges": "Challenges",
+    "/dashboard/phases-themes": "Phases & Themes",
+    "/dashboard/community-nominations": "Community Nominations",
+    "/dashboard/analytics": "Analytics",
+    "/dashboard/system-settings": "System Settings",
+    "/dashboard/players": "Players",
+    "/dashboard/groups": "Groups",
+    "/dashboard/map": "Map",
+    "/dashboard/rewards-points": "Rewards & Points",
+    "/dashboard/resources": "Resources",
+    "/dashboard/reports": "Reports",
+    "/dashboard/profile": "Profile",
+  };
+
+  const section = dashboardSections[location.pathname] ?? "Overview";
+
+  const navigateToDashboardPage = (page: string) => {
+    navigate(dashboardRoutes[page] ?? "/dashboard");
+    setMobileNav(false);
+  };
 
   // Fetch user session on mount
   useEffect(() => {
@@ -212,7 +260,7 @@ export default function App() {
     setPointRequestsOpen(false);
     setPublicSidebarOpen(true); // Default to sidebar open in public view
     setMobileNav(false);
-    setSection("Overview");
+    
 
     // Clear any potential frontend storage as backup
     // Note: Session uses HttpOnly cookie per login component note,
@@ -300,6 +348,17 @@ export default function App() {
       {awardOpen && <AwardModal players={data?.players ?? []} selected={selectedPlayer} setSelected={setSelectedPlayer} onClose={() => setAwardOpen(false)} pushToast={pushToast} />}
 
       <Routes>
+        {/* Application entry point */}
+        <Route
+          path="/"
+          element={
+            user ? (
+              <Navigate to="/dashboard" replace={true} />
+            ) : (
+              <Navigate to="/login" replace={true} />
+            )
+          }
+        />
         {/* Public dashboard route - accessible without login */}
         <Route path="/public" element={
           <div className={`app-shell public-app-shell${publicTvMode ? " public-tv-mode" : ""}`}>
@@ -308,13 +367,12 @@ export default function App() {
               <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
                 <div className="brand"><div className="brand-mark">Q</div><div><strong>QUEST<span>HUB</span></strong><small>CUMBERNAULD CLIMB</small></div></div>
                 <div className="role-switch"><span>CONNECTED AS</span><div className="identity-chip">PUBLIC VIEW</div><div className="role-actions">
-                  <button className={location.pathname === "/public" ? "active" : ""} onClick={() => { navigate("/public", { replace: true }); setSection("Home"); }}>
+                  <button className={location.pathname === "/public" ? "active" : ""} onClick={() => { navigate("/public", { replace: true });  }}>
                     Public
                   </button>
                   {user && isStaff(user) && (
                     <button className={location.pathname === "/dashboard" ? "active" : ""} onClick={() => {
                       navigate("/dashboard", { replace: true });
-                      setSection(user?.role === "admin" ? "Dashboard" : "Overview");
                     }}>
                       My dashboard
                     </button>
@@ -333,7 +391,11 @@ export default function App() {
                     default: icon = <BarChart3 size={17} />;
                   }
                   return (
-                    <button key={item} className={section === item ? "nav-item active" : "nav-item"} onClick={() => { setSection(item); setMobileNav(false); }}>
+                    <button key={item} className={
+                        location.pathname === (dashboardRoutes[item] ?? "/dashboard")
+                          ? "nav-item active"
+                          : "nav-item"
+                      } onClick={() => { navigateToDashboardPage(item); }}>
                       {icon}
                       {item}
                     </button>
@@ -384,6 +446,9 @@ export default function App() {
 
         {/* Login route */}
         <Route path="/login" element={
+          user ? (
+            <Navigate to="/dashboard" replace={true} />
+          ) : (
           <Login
             onLogin={async (username: string, password: string) => {
               setError("");
@@ -392,7 +457,13 @@ export default function App() {
                 setUser(x);
                 pushToast(`Signed in as ${x.role.replace("_", " ")}`);
                 // After login, go to dashboard
-                navigate("/dashboard", { replace: true });
+                const from = location.state?.from;
+                  navigate(
+                    typeof from === "string" && from.startsWith("/dashboard")
+                      ? from
+                      : "/dashboard",
+                    { replace: true }
+                  );
               } catch (e: any) {
                 setError(e.message);
               }
@@ -402,12 +473,17 @@ export default function App() {
             }}
             error={error}
           />
+          )
         } />
 
         {/* Dashboard route - requires login */}
-        <Route path="/dashboard" element={
+        <Route path="/dashboard/*" element={
           !user ? (
-            <Navigate to="/login" replace={true} />
+            <Navigate
+              to="/login"
+              replace={true}
+              state={{ from: location.pathname }}
+            />
           ) : (
             <div className="app-shell">
               {/* Sidebar - we keep the same sidebar logic as before */}
@@ -415,7 +491,7 @@ export default function App() {
                 <div className="brand"><div className="brand-mark">Q</div><div><strong>QUEST<span>HUB</span></strong><small>CUMBERNAULD CLIMB</small></div></div>
                 <div className="role-switch"><span>CONNECTED AS</span><div className="identity-chip">{user?.username ?? "GUEST"}</div><div className="role-actions">
                   {/* Public button - navigate to public dashboard */}
-                  <button className={location.pathname === "/public" ? "active" : ""} onClick={() => { navigate("/public", { replace: true }); setSection("Home"); }}>
+                  <button className={location.pathname === "/public" ? "active" : ""} onClick={() => { navigate("/public", { replace: true });  }}>
                     Public
                   </button>
                   {/* My dashboard button - toggle between public and dashboard? We are already in dashboard. */}
@@ -423,7 +499,6 @@ export default function App() {
                     <button className={location.pathname === "/dashboard" ? "active" : ""} onClick={() => {
                       /* We are in dashboard, so we just set the section to the default for the role */
                       navigate("/dashboard", { replace: true });
-                      setSection(user?.role === "admin" ? "Dashboard" : "Overview");
                     }}>
                       My dashboard
                     </button>
@@ -442,7 +517,11 @@ export default function App() {
                     default: icon = <BarChart3 size={17} />;
                   }
                   return (
-                    <button key={item} className={section === item ? "nav-item active" : "nav-item"} onClick={() => { setSection(item); setMobileNav(false); }}>
+                    <button key={item} className={
+                        location.pathname === (dashboardRoutes[item] ?? "/dashboard")
+                          ? "nav-item active"
+                          : "nav-item"
+                      } onClick={() => { navigateToDashboardPage(item); }}>
                       {icon}
                       {item}
                     </button>
