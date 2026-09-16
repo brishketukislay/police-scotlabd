@@ -195,12 +195,69 @@ export default function App() {
   }, [location.pathname, user]);
 
   const logout = async () => {
-    await api.logout().catch(() => {});
+    try {
+        // Call backend logout API
+        await api.logout();
+    } catch (err) {
+        console.warn("Logout API call failed:", err);
+        // Continue with client-side cleanup even if API fails
+    }
+
+    // Clear all frontend state related to user session and data
     setUser(null);
-    // After logout, go to login page
-    navigate("/login", { replace: true });
+    setData(null);
+    setToasts([]);
+    setError("");
+    setChecking(false);
+
+    // Reset UI state to defaults
+    setWheelOpen(false);
+    setAwardOpen(false);
+    setDrawShapeOpen(false);
+    setSelectedDrawShapeAssignment(null);
+    setSelectedPlayer(null);
+    setUserManagerOpen(false);
+    setEconomyOpen(false);
+    setRewardManagerOpen(false);
+    setDrawingGameManagerOpen(false);
+    setPlayerQrOpen(false);
+    setPointRequestsOpen(false);
+    setPublicSidebarOpen(true); // Default to sidebar open in public view
+    setMobileNav(false);
+    setSection("Overview");
+
+    // Clear any potential frontend storage as backup
+    // Note: Session uses HttpOnly cookie per login component note,
+    // but we clear other storage just in case
+    try {
+        localStorage.removeItem('questhub-user');
+        sessionStorage.removeItem('questhub-user');
+    } catch (e) {
+        // Ignore storage access errors
+    }
+
+    // Clear cookies (best effort for non-HttpOnly cookies)
+    try {
+        document.cookie.split(";").forEach(cookie => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+            document.cookie = name.trim() + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+        });
+    } catch (e) {
+        // Ignore cookie clearing errors
+    }
+
     pushToast("Signed out", "info");
-  };
+
+    // Navigate to login page with replace to prevent back navigation to protected routes
+    navigate("/login", { replace: true });
+
+    // Force a reload after navigation to ensure clean state
+    // This helps clear any potential stale state that might persist
+    setTimeout(() => {
+        window.location.reload();
+    }, 100);
+};
 
   const pushToast = (text:string, tone:Toast["tone"]="success") => {
     const id = Date.now();
@@ -231,12 +288,10 @@ export default function App() {
 
   if (checking) {
     return (
-      <BrowserRouter>
-        <div className="center-screen">
-          <div className="loader-ring" />
-          <p>Connecting to QuestHub…</p>
-        </div>
-      </BrowserRouter>
+      <div className="center-screen">
+        <div className="loader-ring" />
+        <p>Connecting to QuestHub…</p>
+      </div>
     );
   }
 
@@ -247,14 +302,14 @@ export default function App() {
 
   // We will now render based on the route.
   return (
-    <BrowserRouter>
+    <>
       {/* We keep the modals outside the Routes so they are shown on top of everything */}
       {wheelOpen && <WheelModal data={data?.games} onClose={() => setWheelOpen(false)} pushToast={pushToast} />}
       {drawShapeOpen && <DrawShapeModal assignment={selectedDrawShapeAssignment} onClose={() => { setDrawShapeOpen(false); setSelectedDrawShapeAssignment(null); }} pushToast={pushToast} />}
       {userManagerOpen && <UserManagerModal users={data?.users ?? []} onClose={() => setUserManagerOpen(false)} refresh={refresh} pushToast={pushToast} />}
       {economyOpen && <EconomyModal onClose={() => setEconomyOpen(false)} pushToast={pushToast} />}
       {rewardManagerOpen && <RewardManagerModal onClose={() => setRewardManagerOpen(false)} pushToast={pushToast} />}
-      {drawingGameManagerOpen && <DrawingGameManagerModal onClose={() => setDrawingGameManagerOpen(false)} pushToast={pushToast} />}
+      {drawingGameManagerOpen && <DrawingGameManagerModal onClose={() => setDrawingGameManagerOpen(false)} />}
       {playerQrOpen && <PlayerQrModal onClose={() => setPlayerQrOpen(false)} pushToast={pushToast} />}
       {pointRequestsOpen && <PointRequestsModal onClose={() => setPointRequestsOpen(false)} pushToast={pushToast} refresh={refresh} />}
       {awardOpen && <AwardModal players={data?.players ?? []} selected={selectedPlayer} setSelected={setSelectedPlayer} onClose={() => setAwardOpen(false)} pushToast={pushToast} />}
@@ -460,7 +515,7 @@ export default function App() {
 
       <div className="toast-stack">{toasts.map(t => <div className={`toast ${t.tone ?? "success"}`} key={t.id}><Check size={16}/>{t.text}<button onClick={() => setToasts(v => v.filter(x => x.id !== t.id))}><X size={14}/></button></div>)}
       </div>
-    </BrowserRouter>
+    </>
   );
 }
 
@@ -642,7 +697,7 @@ function RewardManagerModal({onClose,pushToast}:{onClose:()=>void;pushToast:(s:s
   </Modal>;
 }
 
-function DrawingGameManagerModal({onClose,pushToast}:{onClose:()=>void;pushToast:(s:string,t?:any)=>void}) {
+function DrawingGameManagerModal({onClose}:{onClose:()=>void}) {
   return <Modal title="Drawing Games Manager" onClose={onClose}>
     <p className="muted">Drawing games management coming soon.</p>
   </Modal>;

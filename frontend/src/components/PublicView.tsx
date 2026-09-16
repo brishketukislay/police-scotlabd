@@ -430,8 +430,7 @@ export default function PublicView({ data }: PublicViewProps) {
             style={{
               width: `${percentage}%`,
               height: "100%",
-              background:
-                "linear-gradient(to right, var(--lime), var(--green))",
+              background: "linear-gradient(to right, var(--lime), var(--green))",
               transition: "width 0.3s ease",
             }}
           />
@@ -455,11 +454,8 @@ export default function PublicView({ data }: PublicViewProps) {
             width: large ? "180px" : "130px",
             height: large ? "180px" : "130px",
             borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(200,255,22,0.1) 0%, transparent 70%)",
-            border: large
-              ? "3px solid rgba(200,255,22,0.2)"
-              : "2px solid rgba(200,255,22,0.2)",
+            background: "radial-gradient(circle, rgba(200,255,22,0.1) 0%, transparent 70%)",
+            border: large ? "3px solid rgba(200,255,22,0.2)" : "2px solid rgba(200,255,22,0.2)",
           }}
         />
 
