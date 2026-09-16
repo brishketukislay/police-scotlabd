@@ -3,709 +3,834 @@ import {
   Award,
   Gauge,
   Map as MapIcon,
-  Trophy,
+  Menu,
+  X,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type PublicViewProps = {
   data: any;
-  section: string;
 };
 
-export default function PublicView({
-  data,
-  section,
-}: PublicViewProps) {
+export default function PublicView({ data }: PublicViewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
-  // Update fullscreen state when it changes externally
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
+  const controlsTimeoutRef = useRef<number | undefined>(undefined);
+  const controlsHideDelay = 3000;
 
   const programme = data?.programme;
   const groupXp = Number(data?.group_xp ?? 0);
   const targetXp = Number(programme?.target_xp ?? 1500000);
 
   const percentage =
-    targetXp > 0
-      ? Math.min(100, (groupXp / targetXp) * 100)
-      : 0;
+    targetXp > 0 ? Math.min(100, Math.max(0, (groupXp / targetXp) * 100)) : 0;
 
-  // Always show the dashboard view (ignore section prop for public dashboard)
-  return (
+  const phases = data?.phases ?? [];
+  const groupProgress = data?.group_progress ?? [];
+  const weeklyRisers = data?.top_5_weekly_high_riser ?? [];
+  const mapLocations = data?.map?.locations ?? [];
+
+  const clearControlsTimeout = () => {
+    if (controlsTimeoutRef.current !== undefined) {
+      window.clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = undefined;
+    }
+  };
+
+  const scheduleControlsHide = () => {
+    clearControlsTimeout();
+
+    if (!isFullscreen) {
+      return;
+    }
+
+    controlsTimeoutRef.current = window.setTimeout(() => {
+      setShowControls(false);
+      controlsTimeoutRef.current = undefined;
+    }, controlsHideDelay);
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error("Unable to toggle fullscreen:", error);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fullscreen = !!document.fullscreenElement;
+
+      setIsFullscreen(fullscreen);
+
+      if (!fullscreen) {
+        setShowControls(true);
+        clearControlsTimeout();
+      } else {
+        setShowControls(true);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener(
+        "fullscreenchange",
+        handleFullscreenChange
+      );
+    };
+  }, []);
+
+  const toggleSidebar = () => {
+    const nextOpen = !isSidebarOpen;
+
+    setIsSidebarOpen(nextOpen);
+
+    window.dispatchEvent(
+      new CustomEvent("toggle-public-sidebar", {
+        detail: { open: nextOpen },
+      })
+    );
+  };
+
+  useEffect(() => {
+    const handleSidebarToggle = (event: Event) => {
+      const customEvent = event as CustomEvent<{ open?: boolean }>;
+
+      if (typeof customEvent.detail?.open === "boolean") {
+        setIsSidebarOpen(customEvent.detail.open);
+      }
+    };
+
+    window.addEventListener(
+      "toggle-public-sidebar",
+      handleSidebarToggle as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "toggle-public-sidebar",
+        handleSidebarToggle as EventListener
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isFullscreen && showControls) {
+      scheduleControlsHide();
+    } else if (!isFullscreen) {
+      setShowControls(true);
+      clearControlsTimeout();
+    }
+
+    return () => {
+      clearControlsTimeout();
+    };
+  }, [isFullscreen, showControls]);
+
+  useEffect(() => {
+    const handleMouseMove = () => {
+      if (!isFullscreen) {
+        return;
+      }
+
+      if (!showControls) {
+        setShowControls(true);
+      }
+
+      scheduleControlsHide();
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      clearControlsTimeout();
+    };
+  }, [isFullscreen, showControls]);
+
+  const renderStatsGrid = (large = false) => (
     <div
       style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#ffffff",
-        color: "#17221e",
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)",
+        gap: large ? "1.5rem" : "1rem",
+        margin: large ? "0 2rem 2rem 2rem" : "0.5rem 0 0",
       }}
     >
-      {/* Header */}
-      <header
+      <div
+        style={{
+          backgroundColor: "var(--panel)",
+          borderRadius: "var(--radius)",
+          padding: large ? "1.5rem" : "1.25rem",
+          textAlign: "center",
+          border: "1px solid var(--line)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: large ? "0.75rem" : "0.5rem",
+          }}
+        >
+          <Gauge
+            size={large ? 32 : 24}
+            color="var(--lime)"
+            style={{ marginRight: large ? "1rem" : "0.75rem" }}
+          />
+          <div>
+            <div
+              style={{
+                fontSize: large ? "1.1rem" : "0.9rem",
+                color: "var(--muted)",
+              }}
+            >
+              Programme target
+            </div>
+            <div
+              style={{
+                fontWeight: 500,
+                marginTop: large ? "0.5rem" : "0.3rem",
+                fontSize: large ? "2rem" : "1.3rem",
+              }}
+            >
+              {targetXp.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          backgroundColor: "var(--panel)",
+          borderRadius: "var(--radius)",
+          padding: large ? "1.5rem" : "1.25rem",
+          textAlign: "center",
+          border: "1px solid var(--line)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: large ? "0.75rem" : "0.5rem",
+          }}
+        >
+          <Activity
+            size={large ? 32 : 24}
+            color="var(--lime)"
+            style={{ marginRight: large ? "1rem" : "0.75rem" }}
+          />
+          <div>
+            <div
+              style={{
+                fontSize: large ? "1.1rem" : "0.9rem",
+                color: "var(--muted)",
+              }}
+            >
+              Collective XP
+            </div>
+            <div
+              style={{
+                fontWeight: 500,
+                marginTop: large ? "0.5rem" : "0.3rem",
+                fontSize: large ? "2rem" : "1.3rem",
+              }}
+            >
+              {groupXp.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          backgroundColor: "var(--panel)",
+          borderRadius: "var(--radius)",
+          padding: large ? "1.5rem" : "1.25rem",
+          textAlign: "center",
+          border: "1px solid var(--line)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: large ? "0.75rem" : "0.5rem",
+          }}
+        >
+          <Award
+            size={large ? 32 : 24}
+            color="var(--lime)"
+            style={{ marginRight: large ? "1rem" : "0.75rem" }}
+          />
+          <div>
+            <div
+              style={{
+                fontSize: large ? "1.1rem" : "0.9rem",
+                color: "var(--muted)",
+              }}
+            >
+              Active phases
+            </div>
+            <div
+              style={{
+                fontWeight: 500,
+                marginTop: large ? "0.5rem" : "0.3rem",
+                fontSize: large ? "2rem" : "1.3rem",
+              }}
+            >
+              {phases.length}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          backgroundColor: "var(--panel)",
+          borderRadius: "var(--radius)",
+          padding: large ? "1.5rem" : "1.25rem",
+          textAlign: "center",
+          border: "1px solid var(--line)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: large ? "0.75rem" : "0.5rem",
+          }}
+        >
+          <MapIcon
+            size={large ? 32 : 24}
+            color="var(--lime)"
+            style={{ marginRight: large ? "1rem" : "0.75rem" }}
+          />
+          <div>
+            <div
+              style={{
+                fontSize: large ? "1.1rem" : "0.9rem",
+                color: "var(--muted)",
+              }}
+            >
+              Map locations
+            </div>
+            <div
+              style={{
+                fontWeight: 500,
+                marginTop: large ? "0.5rem" : "0.3rem",
+                fontSize: large ? "2rem" : "1.3rem",
+              }}
+            >
+              {mapLocations.length}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderHero = (large = false) => (
+    <div
+      style={{
+        display: "flex",
+        gap: large ? "2rem" : "1.5rem",
+        alignItems: "flex-start",
+        backgroundColor: "var(--panel)",
+        borderRadius: "var(--radius)",
+        padding: large ? "2rem" : "1.5rem",
+        border: "1px solid var(--line)",
+        ...(large ? { margin: "2rem" } : {}),
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            marginBottom: large ? "0.75rem" : "0.5rem",
+          }}
+        >
+          <div
+            style={{
+              width: large ? "12px" : "10px",
+              height: large ? "12px" : "10px",
+              backgroundColor: "var(--lime)",
+              borderRadius: "50%",
+              marginRight: large ? "1rem" : "0.75rem",
+            }}
+          />
+
+          <span
+            style={{
+              fontSize: large ? "1.25rem" : "1rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              color: "var(--lime)",
+            }}
+          >
+            LIVE DATA
+          </span>
+        </div>
+
+        <div
+          style={{
+            fontSize: large ? "4rem" : "2.5rem",
+            fontWeight: 600,
+            marginBottom: large ? "0.5rem" : "0.25rem",
+          }}
+        >
+          {groupXp.toLocaleString()}
+          <span style={{ fontSize: large ? "1.5rem" : "1.2rem" }}> XP</span>
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: large ? "1.75rem" : "1.1rem",
+            color: "var(--muted)",
+          }}
+        >
+          {percentage.toFixed(1)}% toward{" "}
+          <span style={{ fontWeight: 500, color: "var(--text)" }}>
+            {targetXp.toLocaleString()} XP target
+          </span>
+        </p>
+
+        <div
+          style={{
+            height: large ? "14px" : "10px",
+            backgroundColor: "var(--line)",
+            borderRadius: large ? "7px" : "5px",
+            overflow: "hidden",
+            marginTop: large ? "1.5rem" : "1rem",
+          }}
+        >
+          <div
+            style={{
+              width: `${percentage}%`,
+              height: "100%",
+              background:
+                "linear-gradient(to right, var(--lime), var(--green))",
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+      </div>
+
+      <div
+        style={{
+          width: large ? "220px" : "160px",
+          height: large ? "220px" : "160px",
+          position: "relative",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: large ? "180px" : "130px",
+            height: large ? "180px" : "130px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(200,255,22,0.1) 0%, transparent 70%)",
+            border: large
+              ? "3px solid rgba(200,255,22,0.2)"
+              : "2px solid rgba(200,255,22,0.2)",
+          }}
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: large ? "140px" : "100px",
+            height: large ? "140px" : "100px",
+            backgroundColor: "var(--lime)",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#07100a",
+            fontWeight: 600,
+            fontSize: large ? "2.5rem" : "2rem",
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}
+        >
+          Q
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderGroupProgress = (large = false) => (
+    <div
+      style={{
+        backgroundColor: "var(--panel)",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--line)",
+        overflow: "hidden",
+      }}
+    >
+      <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "1.5rem 2rem",
-          backgroundColor: "#070a0f",
-          color: "#ffffff",
-          borderBottom: "1px solid #00ff88",
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          backgroundColor: "var(--line)",
+          color: "var(--lime)",
         }}
       >
-        <div>
-          <h1 style={{ margin: 0, fontSize: "1.5rem" }}>QuestHub Public Dashboard</h1>
-          <p style={{ margin: 0, fontSize: "0.9rem", opacity: 0.8 }}>
-            Live community progress
-          </p>
-        </div>
-        <button
-          onClick={toggleFullscreen}
+        <h2
           style={{
-            backgroundColor: isFullscreen ? "#00ff88" : "#ffffff",
-            color: isFullscreen ? "#070a0f" : "#00ff88",
-            border: "none",
-            padding: "0.5rem 1rem",
-            borderRadius: "4px",
-            cursor: "pointer",
+            margin: 0,
+            fontSize: large ? "2rem" : "1.3rem",
             fontWeight: 600,
           }}
         >
-          {isFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
-        </button>
-      </header>
+          GROUP PROGRESS
+        </h2>
+      </div>
 
-      {/* Main Content */}
-      <main
+      <div
         style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: "2rem",
-          padding: "2rem",
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          maxHeight: large ? "250px" : "180px",
           overflowY: "auto",
         }}
       >
-        {/* Hero Stats */}
-        <section
-          style={{
-            display: "flex",
-            gap: "2rem",
-            alignItems: "flex-start",
-          }}
-        >
-          <div
+        {groupProgress.length === 0 ? (
+          <p
             style={{
-              flex: 1,
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
+              textAlign: "center",
+              color: "var(--muted)",
+              fontStyle: "italic",
+              fontSize: large ? "1.5rem" : "1rem",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem" }}>
+            No group data available
+          </p>
+        ) : (
+          groupProgress.slice(0, large ? 6 : 4).map((group: any) => (
+            <div
+              key={group.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: large ? "1rem 0" : "0.75rem 0",
+                borderBottom: "1px solid var(--line)",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontWeight: 500,
+                    marginBottom: large ? "0.5rem" : "0.25rem",
+                    fontSize: large ? "1.75rem" : "1.1rem",
+                  }}
+                >
+                  {group.name}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: large ? "1.5rem" : "1rem",
+                    color: "var(--muted)",
+                  }}
+                >
+                  {Number(group.xp ?? 0).toLocaleString()} XP
+                </div>
+              </div>
+
               <div
                 style={{
-                  width: "8px",
-                  height: "8px",
-                  backgroundColor: "#00ff88",
-                  borderRadius: "50%",
-                  marginRight: "0.5rem",
-                }}
-              />
-              <span style={{ fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                LIVE DATA
-              </span>
-            </div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "2.5rem",
-                fontWeight: 600,
-                background: "linear-gradient(to right, #00ff88, #18775b)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              {groupXp.toLocaleString()}<span style={{ fontSize: "1.5rem" }}> XP</span>
-            </h2>
-            <p style={{ margin: "0.5rem 0", fontSize: "1.1rem", color: "#70808e" }}>
-              {percentage.toFixed(1)}% toward the{" "}
-              <span style={{ fontWeight: 600 }}>
-                {targetXp.toLocaleString()} XP target
-              </span>
-            </p>
-            <div
-              style={{
-                height: "12px",
-                backgroundColor: "#e0e0e0",
-                borderRadius: "6px",
-                overflow: "hidden",
-                marginTop: "1rem",
-              }}
-            >
-              <div
-                style={{
-                  width: `${percentage}%`,
-                  height: "100%",
-                  background: "linear-gradient(to right, #00ff88, #18775b)",
-                  transition: "width 0.3s ease",
-                }}
-              ></div>
-            </div>
-            <div style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#70808e" }}>
-              <span>
-                <b>500K</b> <small>Level 1</small>
-              </span>
-              <span style={{ margin: "0 1rem" }}>
-                <b>1M</b> <small>Level 2</small>
-              </span>
-              <span>
-                <b>1.5M</b> <small>Finale</small>
-              </span>
-            </div>
-          </div>
-
-          {/* Hero Visual - simplified */}
-          <div
-            style={{
-              width: "200px",
-              height: "200px",
-              position: "relative",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "120px",
-                height: "120px",
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)",
-              }}
-            ></div>
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "80px",
-                height: "80px",
-                backgroundColor: "#00ff88",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#070a0f",
-                fontWeight: 600,
-                fontSize: "1.5rem",
-              }}
-            >
-              Q
-            </div>
-          </div>
-        </section>
-
-        {/* Stats Grid */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "1.5rem",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "0.5rem" }}>
-              <Gauge size={24} color="#00ff88" style={{ marginRight: "0.5rem" }} />
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Programme target</div>
-                <div style={{ fontWeight: 600, marginTop: "0.25rem" }}>
-                  {targetXp.toLocaleString()}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#70808e",
-                    marginTop: "0.25rem",
-                  }}
-                >
-                  {Number(
-                    programme?.weekly_target_xp ?? 0
-                  ).toLocaleString()} weekly
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "0.5rem" }}>
-              <Activity size={24} color="#00ff88" style={{ marginRight: "0.5rem" }} />
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Collective XP</div>
-                <div style={{ fontWeight: 600, marginTop: "0.25rem" }}>
-                  {groupXp.toLocaleString()}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#70808e",
-                    marginTop: "0.25rem",
-                  }}
-                >
-                  Live from the API
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "0.5rem" }}>
-              <Award size={24} color="#00ff88" style={{ marginRight: "0.5rem" }} />
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Active phases</div>
-                <div style={{ fontWeight: 600, marginTop: "0.25rem" }}>
-                  {data?.phases?.length ?? 0}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#70808e",
-                    marginTop: "0.25rem",
-                  }}
-                >
-                  Programme phases
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "0.5rem" }}>
-              <MapIcon size={24} color="#00ff88" style={{ marginRight: "0.5rem" }} />
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Map locations</div>
-                <div style={{ fontWeight: 600, marginTop: "0.25rem" }}>
-                  {data?.map?.locations?.length ?? 0}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#70808e",
-                    marginTop: "0.25rem",
-                  }}
-                >
-                  {data?.map?.name ?? "No active map"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Dashboard Sections: Group Progress and Weekly Risers */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "1.5rem",
-          }}
-        >
-          {/* Group Progress */}
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "1.25rem 1.5rem",
-                backgroundColor: "#070a0f",
-                color: "#ffffff",
-              }}
-            >
-              <div>
-                <h2 style={{ margin: 0, fontSize: "1.25rem" }}>GROUP PROGRESS</h2>
-                <p style={{ margin: "0.25rem 0 0", fontSize: "0.9rem", opacity: 0.8 }}>
-                  Team contributions to collective goal
-                </p>
-              </div>
-            </div>
-            <div style={{ padding: "1.5rem" }}>
-              {data?.group_progress?.length === 0 ? (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: "#70808e",
-                    fontStyle: "italic",
-                  }}
-                >
-                  No group data available
-                </p>
-              ) : (
-                <div>
-                  {data?.group_progress?.map((group: any) => (
-                    <div
-                      key={group.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "0.75rem 0",
-                        borderBottom: "1px solid #e0e0e0",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            marginBottom: "0.25rem",
-                          }}
-                        >
-                          {group.name}
-                        </div>
-                        <div style={{ fontSize: "0.9rem", color: "#70808e" }}>
-                          {group.xp.toLocaleString()} XP
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          textAlign: "right",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {group.progress_percentage.toFixed(1)}% of target
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Weekly Risers */}
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "1.25rem 1.5rem",
-                backgroundColor: "#070a0f",
-                color: "#ffffff",
-              }}
-            >
-              <div>
-                <h2 style={{ margin: 0, fontSize: "1.25rem" }}>WEEKLY RISERS</h2>
-                <p style={{ margin: "0.25rem 0 0", fontSize: "0.9rem", opacity: 0.8 }}>
-                  Top 5 XP gainers (last 7 days)
-                </p>
-              </div>
-            </div>
-            <div style={{ padding: "1.5rem" }}>
-              {data?.top_5_weekly_high_riser?.length === 0 ? (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: "#70808e",
-                    fontStyle: "italic",
-                  }}
-                >
-                  No weekly riser data available
-                </p>
-              ) : (
-                <ol
-                  style={{
-                    margin: 0,
-                    paddingLeft: "1.5rem",
-                  }}
-                >
-                  {data?.top_5_weekly_high_riser?.map((riser: any, index: number) => (
-                    <li
-                      key={riser.player_id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "0.5rem 0",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          marginRight: "1rem",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "28px",
-                            height: "28px",
-                            backgroundColor: "#00ff88",
-                            borderRadius: "50%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: 600,
-                            color: "#070a0f",
-                          }}
-                        >
-                          #{index + 1}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            marginBottom: "0.25rem",
-                          }}
-                        >
-                          {riser.gamertag}
-                        </div>
-                        <div style={{ fontSize: "0.9rem", color: "#70808e" }}>
-                          +{riser.weekly_xp.toLocaleString()} XP
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Content Grid: Programme Info and Active Phases */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: "1.5rem",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
-            }}
-          >
-            <h2 style={{ marginTop: 0, marginBottom: "1rem", fontSize: "1.25rem" }}>
-              CURRENT PROGRAMME
-            </h2>
-            <p style={{ color: "#70808e", marginBottom: "1rem" }}>
-              {programme?.description ?? "Collective progress is updated from the programme database."}
-            </p>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "1rem",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Programme</div>
-                <div style={{ fontWeight: 600 }}>
-                  {programme?.name ?? "Youth Challenge"}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Target XP</div>
-                <div style={{ fontWeight: 600 }}>
-                  {targetXp.toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.85rem", color: "#70808e" }}>Weekly Target</div>
-                <div style={{ fontWeight: 600 }}>
-                  {Number(
-                    programme?.weekly_target_xp ?? 0
-                  ).toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: "#f3f7f5",
-              borderRadius: "8px",
-              padding: "1.5rem",
-            }}
-          >
-            <h2 style={{ marginTop: 0, marginBottom: "1rem", fontSize: "1.25rem" }}>
-              ACTIVE PHASES
-            </h2>
-            {(data?.phases ?? []).length === 0 ? (
-              <p
-                style={{
-                  textAlign: "center",
-                  color: "#70808e",
-                  fontStyle: "italic",
+                  textAlign: "right",
+                  fontSize: large ? "1.5rem" : "1rem",
                 }}
               >
-                No active phases configured.
-              </p>
-            ) : (
-              <div>
-                {data?.phases?.map(
-                  (phase: any) => (
-                    <div
-                      key={phase.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "0.75rem 0",
-                        borderBottom: "1px solid #e0e0e0",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            marginBottom: "0.25rem",
-                          }}
-                        >
-                          {phase.name}
-                        </div>
-                        <div style={{ fontSize: "0.9rem", color: "#70808e" }}>
-                          {phase.description ?? "Programme phase"}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          width: "10px",
-                          height: "10px",
-                          backgroundColor: "#00ff88",
-                          borderRadius: "50%",
-                        }}
-                      />
-                    </div>
-                  )
-                )}
+                {Number(group.progress_percentage ?? 0).toFixed(1)}% of target
               </div>
-            )}
-          </div>
-        </section>
-      </main>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
-}
 
-// Keep the other components for potential use elsewhere
-function PublicLeaderboard({
-  data,
-}: {
-  data: any;
-}) {
-  const rows = data?.leaderboards?.overall ?? [];
-
-  return (
-    <div className="page">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">
-            PUBLIC LEADERBOARD
-          </span>
-
-          <h2>Leaderboard</h2>
-
-          <p>
-            Public rankings use gamertags only.
-          </p>
-        </div>
+  const renderWeeklyRisers = (large = false) => (
+    <div
+      style={{
+        backgroundColor: "var(--panel)",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--line)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          backgroundColor: "var(--line)",
+          color: "var(--lime)",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: large ? "2rem" : "1.3rem",
+            fontWeight: 600,
+          }}
+        >
+          WEEKLY RISERS
+        </h2>
       </div>
 
-      <div className="panel">
-        {rows.length === 0 ? (
-          <div className="empty-state">
-            No public leaderboard data yet.
-          </div>
+      <div
+        style={{
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          maxHeight: large ? "250px" : "180px",
+          overflowY: "auto",
+        }}
+      >
+        {weeklyRisers.length === 0 ? (
+          <p
+            style={{
+              textAlign: "center",
+              color: "var(--muted)",
+              fontStyle: "italic",
+              fontSize: large ? "1.5rem" : "1rem",
+            }}
+          >
+            No weekly riser data available
+          </p>
         ) : (
-          <div className="analytics-list">
-            {rows.map((row: any) => (
+          weeklyRisers.slice(0, large ? 6 : 4).map((riser: any, index: number) => (
+            <div
+              key={riser.player_id ?? `${riser.gamertag}-${index}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: large ? "1rem 0" : "0.75rem 0",
+                borderBottom: "1px solid var(--line)",
+              }}
+            >
               <div
-                className="setting-line"
-                key={`${row.rank}-${row.gamertag}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  marginRight: large ? "2rem" : "1.5rem",
+                  flexShrink: 0,
+                }}
               >
-                <span>
-                  <b>
-                    #{row.rank} {row.gamertag}
-                  </b>
+                <div
+                  style={{
+                    width: large ? "36px" : "28px",
+                    height: large ? "36px" : "28px",
+                    backgroundColor: "var(--lime)",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 600,
+                    color: "#07100a",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: large ? "0.9rem" : "0.75rem",
+                  }}
+                >
+                  #{index + 1}
+                </div>
+              </div>
 
-                  <small
-                    style={{
-                      display: "block",
-                      color: "#70808e",
-                    }}
-                  >
-                    {Number(row.xp ?? 0).toLocaleString()} XP
-                  </small>
-                </span>
+              <div>
+                <div
+                  style={{
+                    fontWeight: 500,
+                    marginBottom: large ? "0.5rem" : "0.25rem",
+                    fontSize: large ? "1.75rem" : "1.1rem",
+                  }}
+                >
+                  {riser.gamertag ?? "Unknown player"}
+                </div>
 
-                <Trophy size={18} />
+                <div
+                  style={{
+                    fontSize: large ? "1.5rem" : "1rem",
+                    color: "var(--muted)",
+                  }}
+                >
+                  +{Number(riser.weekly_xp ?? 0).toLocaleString()} XP
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const renderProgrammeInfo = (large = false) => (
+    <div
+      style={{
+        backgroundColor: "var(--panel)",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--line)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          backgroundColor: "var(--line)",
+          color: "var(--lime)",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: large ? "2rem" : "1.3rem",
+            fontWeight: 600,
+          }}
+        >
+          CURRENT PROGRAMME
+        </h2>
+      </div>
+
+      <div style={{ padding: large ? "1.5rem 2rem" : "1rem 1.5rem" }}>
+        <p
+          style={{
+            margin: large ? "0 0 1rem 0" : "0 0 0.75rem 0",
+            fontSize: large ? "1.5rem" : "1rem",
+            color: "var(--muted)",
+          }}
+        >
+          {programme?.description ??
+            "Collective progress is updated from the programme database."}
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: large ? "1.75rem" : "1.1rem",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <span style={{ fontWeight: 500 }}>Programme:</span>{" "}
+            <span>{programme?.name ?? "Youth Challenge"}</span>
+          </div>
+
+          <div>
+            <span style={{ fontWeight: 500 }}>Target:</span>{" "}
+            <span>{targetXp.toLocaleString()} XP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderActivePhases = (large = false) => (
+    <div
+      style={{
+        backgroundColor: "var(--panel)",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--line)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          backgroundColor: "var(--line)",
+          color: "var(--lime)",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: large ? "2rem" : "1.3rem",
+            fontWeight: 600,
+          }}
+        >
+          ACTIVE PHASES
+        </h2>
+      </div>
+
+      <div
+        style={{
+          padding: large ? "1.5rem 2rem" : "1rem 1.5rem",
+          maxHeight: large ? "180px" : "120px",
+          overflowY: "auto",
+        }}
+      >
+        {phases.length === 0 ? (
+          <p
+            style={{
+              textAlign: "center",
+              color: "var(--muted)",
+              fontStyle: "italic",
+              fontSize: large ? "1.5rem" : "1rem",
+            }}
+          >
+            No active phases configured.
+          </p>
+        ) : (
+          <div>
+            {phases.slice(0, large ? 6 : 4).map((phase: any) => (
+              <div
+                key={phase.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: large ? "0.75rem 0" : "0.5rem 0",
+                  borderBottom: "1px solid var(--line)",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 500,
+                    fontSize: large ? "1.75rem" : "1.1rem",
+                  }}
+                >
+                  {phase.name}
+                </div>
               </div>
             ))}
           </div>
@@ -713,144 +838,226 @@ function PublicLeaderboard({
       </div>
     </div>
   );
-}
-
-function PublicMap({
-  data,
-}: {
-  data: any;
-}) {
-  const map = data?.map;
 
   return (
-    <div className="page">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">
-            PROGRAMME MAP
-          </span>
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "var(--bg)",
+        color: "var(--text)",
+        fontFamily: "Inter, system-ui, sans-serif",
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
+      {/* Header */}
+      {!isFullscreen || showControls ? (
+        <header
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "1.5rem 2rem",
+            backgroundColor: "var(--panel)",
+            borderBottom: "2px solid var(--line)",
+            position: "relative",
+            flexShrink: 0,
+            zIndex: 100,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "2.2rem",
+                fontWeight: 600,
+                letterSpacing: "-0.5px",
+              }}
+            >
+              QuestHub Public Display
+            </h1>
 
-          <h2>{map?.name ?? "Programme map"}</h2>
-
-          <p>
-            Active locations configured for the
-            programme.
-          </p>
-        </div>
-      </div>
-
-      <div className="panel">
-        {!map ? (
-          <div className="empty-state">
-            No active map configured.
+            <p
+              style={{
+                margin: "0.5rem 0 0",
+                fontSize: "1.1rem",
+                opacity: 0.9,
+                color: "var(--muted)",
+              }}
+            >
+              Community Progress Dashboard
+            </p>
           </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "1rem",
+              alignItems: "center",
+            }}
+          >
+            <button
+              onClick={toggleSidebar}
+              type="button"
+              style={{
+                backgroundColor: isSidebarOpen
+                  ? "var(--line)"
+                  : "transparent",
+                color: isSidebarOpen ? "var(--lime)" : "var(--text)",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--radius)",
+                padding: "0.75rem 1.5rem",
+                cursor: "pointer",
+                fontWeight: 500,
+                fontSize: "1rem",
+                transition: "all 0.3s ease",
+                fontFamily: "Inter, system-ui, sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <Menu size={20} />
+              <span>{isSidebarOpen ? "‹ Menu" : "Menu ›"}</span>
+            </button>
+
+            <button
+              onClick={toggleFullscreen}
+              type="button"
+              style={{
+                backgroundColor: isFullscreen
+                  ? "var(--line)"
+                  : "transparent",
+                color: isFullscreen ? "var(--lime)" : "var(--text)",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--radius)",
+                padding: "0.75rem 1.5rem",
+                cursor: "pointer",
+                fontWeight: 500,
+                fontSize: "1rem",
+                transition: "all 0.3s ease",
+                marginLeft: "0.5rem",
+                fontFamily: "Inter, system-ui, sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              {isFullscreen ? <X size={20} /> : <Menu size={20} />}
+              <span>{isFullscreen ? "Exit Full" : "Fullscreen"}</span>
+            </button>
+          </div>
+        </header>
+      ) : (
+        <div
+          style={{
+            padding: "1.5rem 2rem",
+            backgroundColor: "var(--panel)",
+            borderBottom: "2px solid var(--line)",
+            position: "relative",
+            flexShrink: 0,
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            className="brand-mark"
+            style={{
+              width: "35px",
+              height: "35px",
+              borderRadius: "10px",
+              backgroundColor: "var(--lime)",
+              color: "#07100a",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: "900",
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}
+          >
+            Q
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main
+        style={{
+          flex: 1,
+          display:
+            isFullscreen && !showControls ? "block" : "grid",
+          gridTemplateColumns:
+            isFullscreen && !showControls
+              ? "1fr"
+              : "repeat(12, 1fr)",
+          gap: isFullscreen && !showControls ? "0" : "1rem",
+          padding: isFullscreen && !showControls ? "0" : "1.5rem",
+          overflowY: "auto",
+          position: "relative",
+        }}
+      >
+        {!isFullscreen || showControls ? (
+          <>
+            {/* Left Column */}
+            <section
+              style={{
+                gridColumn: "span 6",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1rem",
+              }}
+            >
+              {renderHero(false)}
+              {renderStatsGrid(false)}
+            </section>
+
+            {/* Right Column */}
+            <section
+              style={{
+                gridColumn: "span 6",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1rem",
+              }}
+            >
+              {renderGroupProgress(false)}
+              {renderWeeklyRisers(false)}
+              {renderProgrammeInfo(false)}
+              {renderActivePhases(false)}
+            </section>
+          </>
         ) : (
-          <div className="analytics-list">
-            {(map.locations ?? []).map(
-              (location: any) => (
-                <div
-                  className="setting-line"
-                  key={location.id}
-                >
-                  <span>
-                    <b>{location.name}</b>
+          /* Fullscreen with controls hidden */
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {renderHero(true)}
+            {renderStatsGrid(true)}
 
-                    <small
-                      style={{
-                        display: "block",
-                        color: "#70808e",
-                      }}
-                    >
-                      {location.description ??
-                        "Programme location"}
-                    </small>
-                  </span>
-
-                  <MapIcon size={18} />
-                </div>
-              )
-            )}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem",
+                margin: "0 2rem 2rem 2rem",
+              }}
+            >
+              {renderGroupProgress(true)}
+              {renderWeeklyRisers(true)}
+              {renderProgrammeInfo(true)}
+              {renderActivePhases(true)}
+            </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function PublicMilestones({
-  data,
-}: {
-  data: any;
-}) {
-  const target = Number(
-    data?.programme?.target_xp ?? 1500000
-  );
-
-  const milestones = [
-    {
-      xp: 500000,
-      label: "Level 1",
-    },
-    {
-      xp: 1000000,
-      label: "Level 2",
-    },
-    {
-      xp: target,
-      label: "Grand Finale",
-    },
-  ];
-
-  const current = Number(data?.group_xp ?? 0);
-
-  return (
-    <div className="page">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">
-            PROGRAMME MILESTONES
-          </span>
-
-          <h2>Milestones</h2>
-
-          <p>
-            Collective XP progression.
-          </p>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="analytics-list">
-          {milestones.map((milestone) => (
-            <div
-              className="setting-line"
-              key={milestone.xp}
-            >
-              <span>
-                <b>{milestone.label}</b>
-
-                <small
-                  style={{
-                    display: "block",
-                    color: "#70808e",
-                  }}
-                >
-                  {milestone.xp.toLocaleString()} XP
-                </small>
-              </span>
-
-              <span className="status">
-                {current >= milestone.xp
-                  ? "Unlocked"
-                  : `${Math.max(
-                      0,
-                      milestone.xp - current
-                    ).toLocaleString()} XP to go`}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }
