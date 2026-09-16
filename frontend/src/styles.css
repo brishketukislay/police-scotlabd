@@ -997,3 +997,166 @@ nav{display:grid;gap:3px}.nav-item{display:flex;gap:11px;align-items:center;widt
   }
 }
 
+
+
+/* ==========================================================================
+   PUBLIC DASHBOARD / TV MODE
+   ========================================================================== */
+
+.public-app-shell {
+  transition: background-color .2s ease;
+}
+
+.public-app-shell.public-tv-mode {
+  margin: 0;
+  width: 100vw;
+  min-height: 100vh;
+  background: #05090e;
+}
+
+.public-app-shell.public-tv-mode .sidebar {
+  display: none;
+}
+
+.public-app-shell.public-tv-mode .main {
+  margin-left: 0;
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+}
+
+.public-app-shell.public-tv-mode .topbar {
+  display: none;
+}
+
+.public-app-shell.public-tv-mode .api-error {
+  display: none;
+}
+
+.public-app-shell.public-tv-mode .public-dashboard-content {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 28px 38px;
+  box-sizing: border-box;
+}
+
+.public-dashboard-fullscreen {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.public-dashboard-fullscreen .public-tv-content {
+  min-height: 100vh;
+}
+
+/* TV controls */
+.public-tv-controls {
+  position: fixed;
+  top: 22px;
+  right: 28px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(5, 9, 14, .88);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+}
+
+.public-tv-controls button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #0c131b;
+  color: #a8b3bf;
+  cursor: pointer;
+}
+
+.public-tv-controls button:hover {
+  color: var(--lime);
+  border-color: rgba(200,255,22,.35);
+}
+
+.public-tv-controls-label {
+  padding: 0 8px;
+  color: #8491a0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+/* Fullscreen browser state */
+.public-app-shell:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  background: #05090e;
+}
+
+.public-app-shell:fullscreen .public-dashboard-content {
+  overflow: auto;
+}
+
+/* Larger presentation sizing on TVs */
+.public-app-shell.public-tv-mode .public-dashboard-content {
+  --tv-scale: 1;
+}
+
+@media (min-width: 1600px) {
+  .public-app-shell.public-tv-mode .public-dashboard-content {
+    padding: 34px 52px;
+    --tv-scale: 1.08;
+  }
+}
+
+@media (min-width: 2200px) {
+  .public-app-shell.public-tv-mode .public-dashboard-content {
+    padding: 44px 68px;
+    --tv-scale: 1.18;
+  }
+}
+
+.public-app-shell.public-tv-mode .public-tv-brand {
+  transform: scale(var(--tv-scale));
+  transform-origin: left top;
+}
+
+.public-app-shell.public-tv-mode .public-hero {
+  transform: scale(var(--tv-scale));
+  transform-origin: center top;
+}
+
+.public-app-shell.public-tv-mode .stats-grid {
+  transform: scale(var(--tv-scale));
+  transform-origin: center top;
+}
+
+.public-app-shell.public-tv-mode .public-grid {
+  transform: scale(var(--tv-scale));
+  transform-origin: center top;
+}
+
+/* Don't let the mobile layout kick in for a large TV */
+@media (min-width: 1000px) {
+  .public-app-shell.public-tv-mode .public-dashboard-content {
+    overflow-x: hidden;
+  }
+}
+
+/* Keep normal mobile behaviour untouched */
+@media (max-width: 700px) {
+  .public-app-shell.public-tv-mode .public-dashboard-content {
+    padding: 18px 14px;
+  }
+
+  .public-tv-controls {
+    top: 12px;
+    right: 12px;
+  }
+}

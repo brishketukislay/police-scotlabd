@@ -10,9 +10,13 @@ import { useEffect, useRef, useState } from "react";
 
 type PublicViewProps = {
   data: any;
+  onTvModeChange?: (active: boolean) => void;
 };
 
-export default function PublicView({ data }: PublicViewProps) {
+export default function PublicView({
+  data,
+  onTvModeChange,
+}: PublicViewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -54,8 +58,16 @@ export default function PublicView({ data }: PublicViewProps) {
 
   const toggleFullscreen = async () => {
     try {
+      const shell = document.querySelector(
+        ".public-app-shell"
+      ) as HTMLElement | null;
+
       if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
+        if (!shell?.requestFullscreen) {
+          throw new Error("Fullscreen is not supported by this browser.");
+        }
+
+        await shell.requestFullscreen();
       } else {
         await document.exitFullscreen();
       }
@@ -69,6 +81,7 @@ export default function PublicView({ data }: PublicViewProps) {
       const fullscreen = !!document.fullscreenElement;
 
       setIsFullscreen(fullscreen);
+      onTvModeChange?.(fullscreen);
 
       if (!fullscreen) {
         setShowControls(true);
@@ -86,7 +99,7 @@ export default function PublicView({ data }: PublicViewProps) {
         handleFullscreenChange
       );
     };
-  }, []);
+  }, [onTvModeChange]);
 
   const toggleSidebar = () => {
     const nextOpen = !isSidebarOpen;
@@ -838,7 +851,8 @@ export default function PublicView({ data }: PublicViewProps) {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "100%",
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
         backgroundColor: "var(--bg)",
@@ -994,6 +1008,8 @@ export default function PublicView({ data }: PublicViewProps) {
           padding: isFullscreen && !showControls ? "0" : "1.5rem",
           overflowY: "auto",
           position: "relative",
+          minHeight: 0,
+          boxSizing: "border-box",
         }}
       >
         {!isFullscreen || showControls ? (

@@ -54,8 +54,10 @@ export default function App() {
   const [drawingGameManagerOpen, setDrawingGameManagerOpen] = useState(false);
   const [playerQrOpen, setPlayerQrOpen] = useState(false);
   const [pointRequestsOpen, setPointRequestsOpen] = useState(false);
-  // State for sidebar visibility in public mode
+  // Public dashboard shell state.
+  // The sidebar remains available outside TV/fullscreen mode.
   const [publicSidebarOpen, setPublicSidebarOpen] = useState(true);
+  const [publicTvMode, setPublicTvMode] = useState(false);
   // State for mobile sidebar
   const [mobileNav, setMobileNav] = useState(false);
   // State for current section in the dashboard
@@ -158,6 +160,22 @@ export default function App() {
       window.removeEventListener('toggle-public-sidebar', handleSidebarToggle);
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handlePublicTvMode = (event: Event) => {
+      const customEvent = event as CustomEvent<{ active?: boolean }>;
+
+      if (typeof customEvent.detail?.active === "boolean") {
+        setPublicTvMode(customEvent.detail.active);
+      }
+    };
+
+    window.addEventListener("public-tv-mode", handlePublicTvMode);
+
+    return () => {
+      window.removeEventListener("public-tv-mode", handlePublicTvMode);
+    };
+  }, []);
 
   // We'll keep the nav memo, but we will base it on the current route and user.
   // However, note that the nav is used in the sidebar, which is only shown in the dashboard route.
@@ -284,8 +302,8 @@ export default function App() {
       <Routes>
         {/* Public dashboard route - accessible without login */}
         <Route path="/public" element={
-          <div className="app-shell">
-            {/* Sidebar - conditionally hide in public mode based on publicSidebarOpen state */}
+          <div className={`app-shell public-app-shell${publicTvMode ? " public-tv-mode" : ""}`}>
+            {/* Public dashboard sidebar. Hidden automatically in TV mode via CSS. */}
             {!publicSidebarOpen ? null : (
               <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
                 <div className="brand"><div className="brand-mark">Q</div><div><strong>QUEST<span>HUB</span></strong><small>CUMBERNAULD CLIMB</small></div></div>
@@ -348,7 +366,18 @@ export default function App() {
                 </div>
               </header>
               {error && <div className="api-error"><AlertTriangle size={16}/><span>{error}</span><button onClick={() => setError("")}><X size={14}/></button></div>}
-              {data ? <PublicView data={data} /> : <div className="center-screen"><p>Loading public dashboard...</p></div>}
+              {data ? (
+                <PublicView
+                  data={data}
+                  onTvModeChange={(active) => {
+                    setPublicTvMode(active);
+                  }}
+                />
+              ) : (
+                <div className="center-screen">
+                  <p>Loading public dashboard...</p>
+                </div>
+              )}
             </main>
           </div>
         } />
