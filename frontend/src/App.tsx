@@ -114,16 +114,40 @@ export default function App() {
     setMobileNav(false);
   };
 
-  // Fetch user session on mount
-  useEffect(() => {
-    api.me().then(u => {
+  // Validate the current server-side session.
+  // This is intentionally reusable because browsers can restore a previous
+  // dashboard document from the back/forward cache without remounting React.
+  const checkSession = async () => {
+    try {
+      const u = await api.me();
       setUser(u);
-    }).catch(() => {
-      // If me fails, we assume not logged in
+      return u;
+    } catch {
       setUser(null);
-    }).finally(() => {
+      return null;
+    } finally {
       setChecking(false);
-    });
+    }
+  };
+
+  // Fetch user session on mount.
+  useEffect(() => {
+    void checkSession();
+  }, []);
+
+  // Browser Back/Forward can restore a cached protected page without
+  // remounting the application. Re-check the real server session whenever
+  // the page becomes visible again.
+  useEffect(() => {
+    const handlePageShow = () => {
+      void checkSession();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
   }, []);
 
   // Fetch data based on route and user
