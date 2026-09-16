@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Activity, AlertTriangle, ArrowUpRight, Award, BarChart3, Bell, Check, ChevronRight, CircleHelp, Gauge, LayoutDashboard, LogOut, Map, Menu, MoreHorizontal, Search, Settings, ShieldCheck, Sparkles, Trophy, Users as LucideUsers, WalletCards, X, Zap } from "lucide-react";
 import { api, type Role, type SessionUser } from "./api";
@@ -23,6 +23,7 @@ import DrawingGameManagerModal from "./components/modals/DrawingGameManagerModal
 import PlayerQrModal from "./components/modals/PlayerQrModal";
 import PointRequestsModal from "./components/modals/PointRequestsModal";
 import AwardModal from "./components/modals/AwardModal";
+import { getNavigation } from "./navigation";
 
 const demoPlayers = [
   {id:1,gamertag:"PixelRanger",xp:24530,status:"Active",badge:"Silver",color:"lime"},
@@ -32,6 +33,9 @@ const demoPlayers = [
 ];
 
 type Toast = {id:number;text:string;tone?:"success"|"info"|"warning"};
+
+const isStaff = (user: SessionUser | null) =>
+  user?.role === "admin" || user?.role === "youth_worker";
 
 export default function App() {
   const [user, setUser] = useState<SessionUser|null>(null);
@@ -158,47 +162,7 @@ export default function App() {
   // We'll keep the nav memo, but we will base it on the current route and user.
   // However, note that the nav is used in the sidebar, which is only shown in the dashboard route.
   // We will compute the nav items based on the user role, but we will only use it when we are in the dashboard route.
-  const nav = useMemo(() => {
-    // If we are in the public route, we don't use this nav.
-    if (location.pathname === "/public") {
-      return ["Home", "Leaderboard", "Map", "Milestones"];
-    }
-    // If we are in the dashboard route, we base it on the user role.
-    if (!user) {
-      // This shouldn't happen because the dashboard route redirects to login if not authenticated.
-      return [];
-    }
-    if (user?.role === "player") {
-      return ["Home", "Challenges", "Rewards", "Profile"];
-    }
-    if (user?.role === "admin") {
-      return [
-        "Dashboard",
-        "Users & Groups",
-        "Points & Rewards",
-        "Drawing Games",
-        "Points Requests",
-        "Challenges",
-        "Phases & Themes",
-        "Community Nominations",
-        "Analytics",
-        "System Settings"
-      ];
-    }
-    // For youth_worker, we can use the same as admin? Or a subset? We'll use admin for now.
-    return [
-      "Dashboard",
-      "Users & Groups",
-      "Points & Rewards",
-      "Drawing Games",
-      "Points Requests",
-      "Challenges",
-      "Phases & Themes",
-      "Community Nominations",
-      "Analytics",
-      "System Settings"
-    ];
-  }, [location.pathname, user]);
+
 
   const logout = async () => {
     try {
@@ -301,10 +265,7 @@ export default function App() {
     );
   }
 
-  // Helper to check if user is staff
-  const isStaff = (user: SessionUser | null) => {
-    return user?.role === "admin" || user?.role === "youth_worker";
-  };
+  const nav = getNavigation(user, isStaff);
 
   // We will now render based on the route.
   return (
